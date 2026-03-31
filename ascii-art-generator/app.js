@@ -629,148 +629,70 @@
   }
 
   async function exportWebM() {
-    const hasMotion = animator.enabled || isVideoMode || isGifMode || engine.params.ditherAnimEnabled || engine.params.renderMode === 'glitch';
-    if (!hasMotion) {
-      alert('请先启用动画或上传视频/GIF 才能导出视频。');
-      return;
-    }
-
-    recordingIndicator.classList.add('visible');
-
-    const recordDuration = isVideoMode
-      ? Math.min(videoEl.duration * 1000, 30000)
-      : 5000;
-
-    if (isVideoMode) {
-      videoEl.currentTime = 0;
-      videoEl.play();
-    }
-
-    const stream = canvas.captureStream(30);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 5000000,
-    });
-
-    const chunks = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-
-    recorder.start();
-    await new Promise(resolve => setTimeout(resolve, recordDuration));
-    recorder.stop();
-    await new Promise(resolve => { recorder.onstop = resolve; });
-
-    recordingIndicator.classList.remove('visible');
-
-    const blob = new Blob(chunks, { type: 'video/webm' });
-    const link = document.createElement('a');
-    link.download = 'ascii-art.webm';
-    link.href = URL.createObjectURL(blob);
-    link.click();
-    URL.revokeObjectURL(link.href);
+    await exportVideoFrameByFrame('webm');
   }
 
   async function exportMP4() {
+    await exportVideoFrameByFrame('mp4');
+  }
+
+  async function exportVideoFrameByFrame(format) {
     const hasMotion = animator.enabled || isVideoMode || isGifMode || engine.params.ditherAnimEnabled || engine.params.renderMode === 'glitch';
     if (!hasMotion) {
       alert('请先启用动画或上传视频/GIF 才能导出视频。');
       return;
     }
 
-    let mimeType = '';
-    for (const type of [
-      'video/mp4;codecs=avc1.42E01E',
-      'video/mp4;codecs=avc1',
-      'video/mp4',
-    ]) {
-      if (MediaRecorder.isTypeSupported(type)) {
-        mimeType = type;
-        break;
-      }
-    }
-
-    if (!mimeType) {
-      if (typeof VideoEncoder !== 'undefined') {
-        await exportMP4WebCodecs();
-        return;
-      }
-      alert('您的浏览器不支持 MP4 导出，请使用最新版 Chrome 或 Edge 浏览器。');
+    if (typeof VideoEncoder === 'undefined') {
+      alert('您的浏览器不支持逐帧导出，请使用最新版 Chrome 或 Edge。');
       return;
     }
 
+    const fps = 30;
+    const totalDuration = isVideoMode ? Math.min(videoEl.duration, 30) : 5;
+    const totalFrames = Math.floor(totalDuration * fps);
+    const frameDurUs = 1000000 / fps;
+
     recordingIndicator.classList.add('visible');
-
-    const recordDuration = isVideoMode
-      ? Math.min(videoEl.duration * 1000, 30000)
-      : 5000;
-
-    if (isVideoMode) {
-      videoEl.currentTime = 0;
-      videoEl.play();
-    }
-
-    const stream = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 8000000,
-    });
-
-    const chunks = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-
-    recorder.start();
-    await new Promise(resolve => setTimeout(resolve, recordDuration));
-    recorder.stop();
-    await new Promise(resolve => { recorder.onstop = resolve; });
-
-    recordingIndicator.classList.remove('visible');
-
-    const blob = new Blob(chunks, { type: 'video/mp4' });
-    const link = document.createElement('a');
-    link.download = 'ascii-art.mp4';
-    link.href = URL.createObjectURL(blob);
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }
-
-  async function exportMP4WebCodecs() {
-    recordingIndicator.classList.add('visible');
+    recordingIndicator.querySelector('span').textContent = 'Exporting 0%...';
 
     try {
-      const { Muxer, ArrayBufferTarget } = await import(
-        'https://cdn.jsdelivr.net/npm/mp4-muxer@5/build/mp4-muxer.min.mjs'
-      );
+      let Muxer, ArrayBufferTarget;
+      if (format === 'mp4') {
+        ({ Muxer, ArrayBufferTarget } = await import(
+          'https://cdn.jsdelivr.net/npm/mp4-muxer@5/build/mp4-muxer.min.mjs'
+        ));
+      } else {
+        ({ Muxer, ArrayBufferTarget } = await import(
+          'https://cdn.jsdelivr.net/npm/webm-muxer@5/build/webm-muxer.min.mjs'
+        ));
+      }
 
       const w = canvas.width;
       const h = canvas.height;
       const encW = w + (w % 2);
       const encH = h + (h % 2);
-      const fps = 30;
 
       const target = new ArrayBufferTarget();
       const muxer = new Muxer({
         target,
-        video: { codec: 'avc', width: encW, height: encH },
-        fastStart: 'in-memory',
+        video: format === 'mp4'
+          ? { codec: 'avc', width: encW, height: encH }
+          : { codec: 'V_VP9', width: encW, height: encH },
+        fastStart: format === 'mp4' ? 'in-memory' : undefined,
       });
 
+      const codecStr = format === 'mp4' ? 'avc1.42001f' : 'vp09.00.10.08';
       const encoder = new VideoEncoder({
         output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-        error: (e) => console.error(e),
+        error: (e) => console.error('VideoEncoder error:', e),
       });
 
       encoder.configure({
-        codec: 'avc1.42001f',
+        codec: codecStr,
         width: encW,
         height: encH,
-        bitrate: 5000000,
+        bitrate: 8000000,
         framerate: fps,
       });
 
@@ -780,60 +702,69 @@
         srcCanvas.width = encW;
         srcCanvas.height = encH;
       }
+      const srcCtx = srcCanvas !== canvas ? srcCanvas.getContext('2d') : null;
 
-      const totalDuration = isVideoMode
-        ? Math.min(videoEl.duration, 30)
-        : 5;
-      const totalFrames = Math.floor(totalDuration * fps);
-      const frameDurUs = 1000000 / fps;
+      const savedAnimFrame = animator.frame;
+      const savedDitherStart = engine._ditherAnimStart;
+      if (animator.enabled) { animator.frame = 0; animator.reset(); }
+      engine._ditherAnimStart = 0;
 
-      if (isVideoMode) {
-        videoEl.pause();
-        for (let i = 0; i < totalFrames; i++) {
+      if (isVideoMode) videoEl.pause();
+
+      for (let i = 0; i < totalFrames; i++) {
+        const frameTimeMs = (i / fps) * 1000;
+        engine._renderTimeMs = frameTimeMs;
+
+        if (isVideoMode) {
           videoEl.currentTime = i / fps;
           await new Promise(r => { videoEl.onseeked = r; });
           engine.updateFrame();
-          const dims = engine.getGridDimensions();
-          const offsets = animator.enabled ? animator.getOffsets(dims.rows, dims.cols) : null;
-          engine.render(offsets);
-          if (srcCanvas !== canvas) srcCanvas.getContext('2d').drawImage(canvas, 0, 0);
-          const frame = new VideoFrame(srcCanvas, { timestamp: Math.round(i * frameDurUs) });
-          encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
-          frame.close();
+        } else if (isGifMode) {
+          engine.updateFrame();
         }
-        videoEl.play();
-      } else {
-        const savedFrame = animator.frame;
-        if (animator.enabled) { animator.frame = 0; animator.reset(); }
-        for (let i = 0; i < totalFrames; i++) {
-          if (isGifMode) engine.updateFrame();
-          const dims = engine.getGridDimensions();
-          const offsets = animator.enabled ? animator.getOffsets(dims.rows, dims.cols) : null;
-          engine.render(offsets);
-          if (srcCanvas !== canvas) srcCanvas.getContext('2d').drawImage(canvas, 0, 0);
-          const frame = new VideoFrame(srcCanvas, { timestamp: Math.round(i * frameDurUs) });
-          encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
-          frame.close();
-          await new Promise(r => setTimeout(r, 33));
+
+        const dims = engine.getGridDimensions();
+        const offsets = animator.enabled ? animator.getOffsets(dims.rows, dims.cols) : null;
+        engine.render(offsets);
+
+        if (srcCtx) {
+          srcCtx.clearRect(0, 0, encW, encH);
+          srcCtx.drawImage(canvas, 0, 0);
         }
-        if (animator.enabled) animator.frame = savedFrame;
+
+        const frame = new VideoFrame(srcCanvas, { timestamp: Math.round(i * frameDurUs) });
+        encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+        frame.close();
+
+        if (i % 5 === 0) {
+          const pct = Math.round((i / totalFrames) * 100);
+          recordingIndicator.querySelector('span').textContent = `Exporting ${pct}%...`;
+          await new Promise(r => setTimeout(r, 0));
+        }
       }
+
+      engine._renderTimeMs = null;
+      if (animator.enabled) animator.frame = savedAnimFrame;
+      engine._ditherAnimStart = savedDitherStart;
+      if (isVideoMode) videoEl.play();
 
       await encoder.flush();
       encoder.close();
       muxer.finalize();
 
-      const blob = new Blob([target.buffer], { type: 'video/mp4' });
+      const mimeType = format === 'mp4' ? 'video/mp4' : 'video/webm';
+      const blob = new Blob([target.buffer], { type: mimeType });
       const link = document.createElement('a');
-      link.download = 'ascii-art.mp4';
+      link.download = `ascii-art.${format}`;
       link.href = URL.createObjectURL(blob);
       link.click();
       URL.revokeObjectURL(link.href);
     } catch (err) {
-      console.error('MP4 export failed:', err);
-      alert('MP4 导出失败: ' + err.message);
+      console.error(`${format.toUpperCase()} export failed:`, err);
+      alert(`${format.toUpperCase()} 导出失败: ${err.message}`);
     }
 
+    recordingIndicator.querySelector('span').textContent = 'Recording...';
     recordingIndicator.classList.remove('visible');
   }
 
@@ -1063,7 +994,7 @@
       codec: 'avc1.42001f',
       width: encW,
       height: encH,
-      bitrate: 5000000,
+      bitrate: 8000000,
       framerate: fps,
     });
 
@@ -1082,6 +1013,7 @@
       const frame = new VideoFrame(tmpCvs, { timestamp: Math.round(i * frameDurUs) });
       encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
       frame.close();
+      if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
     await encoder.flush();

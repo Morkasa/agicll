@@ -19,6 +19,7 @@ class ASCIIEngine {
     this.asciiGrid = null;
     this.colorGrid = null;
     this._ditherAnimStart = 0;
+    this._renderTimeMs = null;
 
     this._tmpCanvas = document.createElement('canvas');
     this._tmpCtx = this._tmpCanvas.getContext('2d');
@@ -425,7 +426,8 @@ class ASCIIEngine {
 
     let animTime = 0;
     if (this.params.ditherAnimEnabled) {
-      animTime = (performance.now() - this._ditherAnimStart) / 1000;
+      const now = this._renderTimeMs !== null ? this._renderTimeMs : performance.now();
+      animTime = (now - this._ditherAnimStart) / 1000;
     }
     const aSpeed = this.params.ditherAnimSpeed / 50;
     const aInt = this.params.ditherAnimIntensity / 50;
