@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII Art Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <div class="canvas-area" id="canvasArea">
+      <canvas id="asciiCanvas"></canvas>
+      <video id="videoSource" muted loop playsinline style="display:none"></video>
+      <div class="drop-zone" id="dropZone">
+        <p>Drag & drop image / video / GIF here to upload</p>
+      </div>
+
+      <div class="video-controls" id="videoControls">
+        <button class="vc-btn" id="vcPlayPause" title="Play/Pause">
+          <svg id="vcPlayIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="vcPauseIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <span class="vc-time" id="vcCurrentTime">0:00</span>
+        <input type="range" class="vc-seek" id="vcSeek" min="0" max="1000" value="0" step="1">
+        <span class="vc-time" id="vcDuration">0:00</span>
+        <select class="vc-speed" id="vcSpeed">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2x</option>
+        </select>
+        <button class="vc-btn" id="vcMute" title="Mute/Unmute">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+      </div>
+
+      <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <div class="preview-box" id="previewBox">
+        <canvas id="previewCanvas" width="280" height="120"></canvas>
+        <button class="settings-btn" id="settingsBtn" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab active" data-tab="ascii">ASCII Art</button>
+        <button class="tab" data-tab="glitch">Glitch Art</button>
+        <button class="tab" data-tab="dithering">Dithering</button>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-upload" id="uploadBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Upload
+        </button>
+        <button class="btn btn-export" id="exportBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export
+        </button>
+        <input type="file" id="fileInput" accept="image/*,video/webm,video/mp4,video/*,.gif" hidden>
+      </div>
+
+      <div class="record-bar">
+        <button class="btn btn-record" id="recordBtn">
+          <span class="rec-dot"></span>
+          <span id="recordLabel">Record</span>
+        </button>
+        <div class="rec-options">
+          <select class="rec-select" id="recFps">
+            <option value="25">25 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+          <select class="rec-select" id="recFormat">
+            <option value="mp4" selected>MP4</option>
+            <option value="webm">WebM</option>
+          </select>
+        </div>
+        <span class="rec-timer" id="recTimer">00:00</span>
+      </div>
+
+      <div class="controls-scroll">
+        <!-- ===== ASCII Art Tab ===== -->
+        <div class="tab-content active" data-tab="ascii">
+          <div class="control-section">
+            <div class="section-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
+              </svg>
+              <span>Character</span>
+            </div>
+            <div class="control-group">
+              <label>Style</label>
+              <div class="style-grid">
+                <button class="style-btn active" data-style="dense">Dense</button>
+                <button class="style-btn" data-style="classic">Classic</button>
+                <button class="style-btn" data-style="digits">Digits</button>
+                <button class="style-btn" data-style="minimal">Minimal</button>
+                <button class="style-btn" data-style="blocks">Blocks</button>
+                <button class="style-btn" data-style="custom">Custom</button>
+              </div>
+              <input type="text" class="custom-chars-input" id="customChars" placeholder="Enter custom characters..." style="display:none">
+            </div>
+            <div class="control-group"><label>Size</label><div class="slider-row"><input type="range" class="slider" id="sizeSlider" min="2" max="20" value="6" step="1"></div></div>
+            <div class="control-group"><label>Coverage</label><div class="slider-row"><input type="range" class="slider" id="coverageSlider" min="0" max="100" value="100" step="1"></div></div>
+            <div class="control-group"><label>Edge Emphasis</label><div class="slider-row"><input type="range" class="slider" id="edgeSlider" min="0" max="100" value="80" step="1"></div></div>
+            <div class="control-group"><label>Opacity</label><div class="slider-row"><input type="range" class="slider" id="opacitySlider" min="0" max="100" value="60" step="1"></div></div>
+            <div class="control-group"><label>Brightness</label><div class="slider-row"><input type="range" class="slider" id="brightnessSlider" min="-100" max="100" value="20" step="1"></div></div>
+            <div class="control-group"><label>Contrast</label><div class="slider-row"><input type="range" class="slider" id="contrastSlider" min="-100" max="100" value="40" step="1"></div></div>
+            <div class="control-group toggle-group"><label>Invert</label><label class="toggle"><input type="checkbox" id="invertToggle"><span class="toggle-slider"></span></label></div>
+            <div class="control-group toggle-group"><label>Dot Grid</label><label class="toggle"><input type="checkbox" id="dotGridToggle"><span class="toggle-slider"></span></label></div>
+          </div>
+          <div class="control-section">
+            <div class="section-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Background</span>
+            </div>
+            <div class="control-group"><label>Blur</label><div class="slider-row"><input type="range" class="slider" id="bgBlurSlider" min="0" max="30" value="4" step="1"></div></div>
+            <div class="control-group"><label>Opacity</label><div class="slider-row"><input type="range" class="slider" id="bgOpacitySlider" min="0" max="100" value="80" step="1"></div></div>
+            <div class="control-group toggle-group"><label>Color</label><input type="color" class="color-picker" id="bgColorPicker" value="#0a0a0a"></div>
+          </div>
+        </div>
+
+        <!-- ===== Glitch Art Tab ===== -->
+        <div class="tab-content" data-tab="glitch">
+          <div class="control-section">
+            <div class="section-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <span>Glitch Effect</span>
+            </div>
+            <div class="control-group"><label>RGB Shift</label><div class="slider-row"><input type="range" class="slider" id="glitchRgbSlider" min="0" max="30" value="8" step="1"></div></div>
+            <div class="control-group"><label>Scanlines</label><div class="slider-row"><input type="range" class="slider" id="glitchScanlinesSlider" min="0" max="100" value="40" step="1"></div></div>
+            <div class="control-group"><label>Block Glitch</label><div class="slider-row"><input type="range" class="slider" id="glitchBlockSlider" min="0" max="100" value="30" step="1"></div></div>
+            <div class="control-group"><label>Noise</label><div class="slider-row"><input type="range" class="slider" id="glitchNoiseSlider" min="0" max="100" value="15" step="1"></div></div>
+            <div class="control-group"><label>Color Shift</label><div class="slider-row"><input type="range" class="slider" id="glitchColorSlider" min="0" max="100" value="20" step="1"></div></div>
+          </div>
+        </div>
+
+        <!-- ===== Dithering Tab ===== -->
+        <div class="tab-content" data-tab="dithering">
+          <div class="control-section">
+            <div class="section-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="1.5"/><circle cx="20" cy="4" r="2"/>
+                <circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="1.5"/>
+                <circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="1.5"/><circle cx="20" cy="20" r="2"/>
+              </svg>
+              <span>Dithering</span>
+            </div>
+            <div class="control-group">
+              <label>Type</label>
+              <div class="style-grid" style="grid-template-columns: repeat(4, 1fr)">
+                <button class="style-btn dither-type-btn" data-dtype="random">Random</button>
+                <button class="style-btn dither-type-btn" data-dtype="bayer2">2×2</button>
+                <button class="style-btn dither-type-btn" data-dtype="bayer4">4×4</button>
+                <button class="style-btn dither-type-btn active" data-dtype="bayer8">8×8</button>
+              </div>
+            </div>
+            <div class="control-group toggle-group"><label>Original Colors</label><label class="toggle"><input type="checkbox" id="ditherOrigColors"><span class="toggle-slider"></span></label></div>
+            <div class="control-group toggle-group"><label>Inverted</label><label class="toggle"><input type="checkbox" id="ditherInvert"><span class="toggle-slider"></span></label></div>
+            <div class="control-group"><label>Dither Size</label><div class="slider-row"><input type="range" class="slider" id="ditherSizeSlider" min="1" max="10" value="2" step="1"></div></div>
+            <div class="control-group"><label>Color Steps</label><div class="slider-row"><input type="range" class="slider" id="ditherStepsSlider" min="2" max="8" value="2" step="1"></div></div>
+            <div class="control-group"><label>Foreground</label><div class="color-row"><input type="color" class="color-picker" id="ditherFg1" value="#94FFAF"><input type="color" class="color-picker" id="ditherFg2" value="#EAFF94"></div></div>
+            <div class="control-group toggle-group"><label>Fill</label><input type="color" class="color-picker" id="ditherFill" value="#000C38"></div>
+            <div class="control-group">
+              <label>Animation</label>
+              <div class="style-grid" style="grid-template-columns: repeat(5, 1fr)">
+                <button class="style-btn dither-anim-btn active" data-danim="none">Off</button>
+                <button class="style-btn dither-anim-btn" data-danim="shift">Shift</button>
+                <button class="style-btn dither-anim-btn" data-danim="pulse">Pulse</button>
+                <button class="style-btn dither-anim-btn" data-danim="noise">Noise</button>
+                <button class="style-btn dither-anim-btn" data-danim="wave">Wave</button>
+              </div>
+            </div>
+            <div class="control-group"><label>Anim Speed</label><div class="slider-row"><input type="range" class="slider" id="ditherAnimSpeed" min="1" max="100" value="50" step="1"></div></div>
+            <div class="control-group"><label>Anim Intensity</label><div class="slider-row"><input type="range" class="slider" id="ditherAnimIntensity" min="1" max="100" value="50" step="1"></div></div>
+          </div>
+        </div>
+
+        <!-- ===== Animation Section (ASCII + Glitch modes) ===== -->
+        <div class="control-section" id="animationSection">
+          <div class="section-header clickable" id="animationHeader">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Animation</span>
+            <label class="toggle" style="margin-left:auto">
+              <input type="checkbox" id="animationToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="animation-controls" id="animationControls">
+            <div class="control-group">
+              <label>Type</label>
+              <div class="style-grid">
+                <button class="style-btn anim-btn active" data-anim="wave">Wave</button>
+                <button class="style-btn anim-btn" data-anim="matrix">Matrix</button>
+                <button class="style-btn anim-btn" data-anim="glitch">Glitch</button>
+                <button class="style-btn anim-btn" data-anim="pulse">Pulse</button>
+                <button class="style-btn anim-btn" data-anim="typing">Typing</button>
+                <button class="style-btn anim-btn" data-anim="rain">Rain</button>
+                <button class="style-btn anim-btn" data-anim="spiral">Spiral</button>
+                <button class="style-btn anim-btn" data-anim="scanline">Scanline</button>
+                <button class="style-btn anim-btn" data-anim="dissolve">Dissolve</button>
+              </div>
+            </div>
+            <div class="control-group"><label>Speed</label><div class="slider-row"><input type="range" class="slider" id="animSpeedSlider" min="1" max="100" value="50" step="1"></div></div>
+            <div class="control-group"><label>Intensity</label><div class="slider-row"><input type="range" class="slider" id="animIntensitySlider" min="1" max="100" value="50" step="1"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="recording-indicator" id="recordingIndicator">
+    <div class="recording-dot"></div>
+    <span>Recording...</span>
+  </div>
+
+  <div class="export-modal" id="exportModal">
+    <div class="modal-content">
+      <h3>Export</h3>
+      <div class="export-options">
+        <button class="export-option" data-format="png">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><text x="12" y="15" text-anchor="middle" font-size="7" fill="currentColor" stroke="none">PNG</text></svg>
+          <span>PNG Image</span>
+        </button>
+        <button class="export-option" data-format="gif">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><text x="12" y="15" text-anchor="middle" font-size="7" fill="currentColor" stroke="none">GIF</text></svg>
+          <span>GIF Animation</span>
+        </button>
+        <button class="export-option" data-format="mp4">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><text x="12" y="15" text-anchor="middle" font-size="7" fill="currentColor" stroke="none">MP4</text></svg>
+          <span>MP4 Video</span>
+        </button>
+        <button class="export-option" data-format="webm">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><text x="12" y="15" text-anchor="middle" font-size="6" fill="currentColor" stroke="none">WEBM</text></svg>
+          <span>WebM Video</span>
+        </button>
+        <button class="export-option" data-format="txt">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Text File</span>
+        </button>
+      </div>
+      <button class="modal-close" id="modalClose">Cancel</button>
+    </div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="animation.js"></script>
+  <script src="gif-encoder.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
