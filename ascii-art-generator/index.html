@@ -80,6 +80,10 @@
             <span class="rec-dot"></span>
             <span id="recordLabel">Record</span>
           </button>
+          <button class="btn btn-rec-pause" id="recPauseBtn" style="display:none">
+            <svg id="recPauseIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <svg id="recResumeIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
           <div class="rec-options">
             <select class="rec-select" id="recFps">
               <option value="25">25 fps</option>
@@ -111,6 +115,7 @@
           <span class="rec-time" id="recTimeTotal">05:00</span>
         </div>
       </div>
+      <video id="recPreviewVideo" muted style="display:none"></video>
 
       <div class="controls-scroll">
         <!-- ===== ASCII Art Tab ===== -->

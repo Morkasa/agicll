@@ -24,6 +24,9 @@
   const recordBar = document.getElementById('recordBar');
   const recordBtn = document.getElementById('recordBtn');
   const recordLabel = document.getElementById('recordLabel');
+  const recPauseBtn = document.getElementById('recPauseBtn');
+  const recPauseIcon = document.getElementById('recPauseIcon');
+  const recResumeIcon = document.getElementById('recResumeIcon');
   const recFpsSelect = document.getElementById('recFps');
   const recFormatSelect = document.getElementById('recFormat');
   const recDurationSelect = document.getElementById('recDuration');
@@ -31,6 +34,7 @@
   const recTimeTotal = document.getElementById('recTimeTotal');
   const recProgressFill = document.getElementById('recProgressFill');
   const recProgressSeek = document.getElementById('recProgressSeek');
+  const recPreviewVideo = document.getElementById('recPreviewVideo');
 
   const engine = new ASCIIEngine(canvas);
   const animator = new AnimationController();
@@ -42,11 +46,15 @@
   const recordingIndicator = document.getElementById('recordingIndicator');
 
   let isRecording = false;
+  let isRecPaused = false;
   let mediaRecorder = null;
   let recordedChunks = [];
   let recStartTime = 0;
+  let recElapsedBeforePause = 0;
   let recTimerInterval = null;
   let recMaxDurationSec = 300;
+  let recPreviewUrl = null;
+  let isSeeking = false;
 
   function updateSliderFill(slider) {
     const min = parseFloat(slider.min);
@@ -852,7 +860,18 @@
     recTimeTotal.textContent = recMaxDurationSec > 0 ? formatRecTime(recMaxDurationSec) : '∞';
   });
 
-  // --- Real-time Recording ---
+  function formatRecTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  }
+
+  function getRecElapsed() {
+    if (isRecPaused) return recElapsedBeforePause;
+    return recElapsedBeforePause + (Date.now() - recStartTime) / 1000;
+  }
+
+  // --- Record / Stop ---
   recordBtn.addEventListener('click', () => {
     if (isRecording) {
       stopRecording();
@@ -861,11 +880,15 @@
     }
   });
 
-  function formatRecTime(sec) {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-  }
+  // --- Pause / Resume ---
+  recPauseBtn.addEventListener('click', () => {
+    if (!isRecording || !mediaRecorder) return;
+    if (isRecPaused) {
+      resumeRecording();
+    } else {
+      pauseRecording();
+    }
+  });
 
   function startRecording() {
     if (!engine.sourceImage && !engine.sourceVideo) return;
@@ -919,36 +942,82 @@
 
     mediaRecorder.start(1000);
     isRecording = true;
+    isRecPaused = false;
     recStartTime = Date.now();
+    recElapsedBeforePause = 0;
 
     recordBtn.classList.add('recording');
     recordBar.classList.add('is-recording');
+    recordBar.classList.remove('is-paused');
     recordLabel.textContent = 'Stop';
+    recPauseBtn.style.display = 'flex';
+    recPauseIcon.style.display = 'block';
+    recResumeIcon.style.display = 'none';
+    recPauseBtn.classList.remove('is-paused');
     recTimeElapsed.textContent = '00:00';
     recTimeTotal.textContent = recMaxDurationSec > 0 ? formatRecTime(recMaxDurationSec) : '∞';
     recProgressFill.style.width = '0%';
     recProgressSeek.value = 0;
     recordingIndicator.classList.add('visible');
+    cleanupPreview();
 
     recTimerInterval = setInterval(updateRecProgress, 300);
   }
 
+  function pauseRecording() {
+    if (!isRecording || isRecPaused || !mediaRecorder) return;
+    mediaRecorder.pause();
+    recElapsedBeforePause += (Date.now() - recStartTime) / 1000;
+    isRecPaused = true;
+
+    recPauseIcon.style.display = 'none';
+    recResumeIcon.style.display = 'block';
+    recPauseBtn.classList.add('is-paused');
+    recordBar.classList.add('is-paused');
+    recordingIndicator.querySelector('span').textContent = 'Paused';
+
+    buildPreview();
+  }
+
+  function resumeRecording() {
+    if (!isRecording || !isRecPaused || !mediaRecorder) return;
+    cleanupPreview();
+    mediaRecorder.resume();
+    recStartTime = Date.now();
+    isRecPaused = false;
+
+    recPauseIcon.style.display = 'block';
+    recResumeIcon.style.display = 'none';
+    recPauseBtn.classList.remove('is-paused');
+    recordBar.classList.remove('is-paused');
+    recordingIndicator.querySelector('span').textContent = 'Recording...';
+  }
+
   function stopRecording() {
     if (!isRecording || !mediaRecorder) return;
+    if (isRecPaused) {
+      mediaRecorder.resume();
+    }
     mediaRecorder.stop();
     isRecording = false;
+    isRecPaused = false;
 
     clearInterval(recTimerInterval);
     recTimerInterval = null;
 
     recordBtn.classList.remove('recording');
     recordBar.classList.remove('is-recording');
+    recordBar.classList.remove('is-paused');
     recordLabel.textContent = 'Record';
+    recPauseBtn.style.display = 'none';
+    recPauseBtn.classList.remove('is-paused');
     recordingIndicator.classList.remove('visible');
+    cleanupPreview();
   }
 
   function updateRecProgress() {
-    const elapsedSec = (Date.now() - recStartTime) / 1000;
+    if (isSeeking) return;
+    const elapsedSec = getRecElapsed();
     recTimeElapsed.textContent = formatRecTime(elapsedSec);
 
     if (recMaxDurationSec > 0) {
@@ -956,22 +1025,71 @@
       recProgressFill.style.width = `${pct}%`;
       recProgressSeek.value = Math.round(pct * 10);
 
-      if (elapsedSec >= recMaxDurationSec) {
+      if (!isRecPaused && elapsedSec >= recMaxDurationSec) {
         stopRecording();
       }
     } else {
-      const cycleSec = 600;
-      const pct = ((elapsedSec % cycleSec) / cycleSec) * 100;
-      recProgressFill.style.width = `${pct}%`;
-      recProgressSeek.value = Math.round(pct * 10);
+      const totalSoFar = Math.max(elapsedSec, 1);
+      recProgressFill.style.width = '100%';
+      recProgressSeek.value = 1000;
+      recTimeTotal.textContent = formatRecTime(totalSoFar);
     }
   }
 
+  // --- Seek preview when paused ---
   recProgressSeek.addEventListener('input', () => {
-    if (!isRecording || recMaxDurationSec <= 0) return;
-    const pct = recProgressSeek.value / 1000;
-    recProgressFill.style.width = `${pct * 100}%`;
+    if (!isRecording) return;
+    if (!isRecPaused) return;
+    isSeeking = true;
+
+    const elapsed = getRecElapsed();
+    const seekTime = (recProgressSeek.value / 1000) * elapsed;
+    recTimeElapsed.textContent = formatRecTime(seekTime);
+    recProgressFill.style.width = `${(recProgressSeek.value / 10)}%`;
+
+    if (recPreviewVideo.readyState >= 1 && isFinite(recPreviewVideo.duration)) {
+      recPreviewVideo.currentTime = Math.min(seekTime, recPreviewVideo.duration);
+    }
   });
+
+  recProgressSeek.addEventListener('change', () => {
+    isSeeking = false;
+  });
+
+  recPreviewVideo.addEventListener('seeked', () => {
+    if (!isRecPaused) return;
+    const ctx2 = canvas.getContext('2d');
+    ctx2.drawImage(recPreviewVideo, 0, 0, canvas.width, canvas.height);
+  });
+
+  function buildPreview() {
+    if (recordedChunks.length === 0) return;
+    const usedMime = mediaRecorder.mimeType || 'video/webm';
+    const blob = new Blob(recordedChunks, { type: usedMime });
+    if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
+    recPreviewUrl = URL.createObjectURL(blob);
+    recPreviewVideo.src = recPreviewUrl;
+    recPreviewVideo.load();
+
+    const elapsed = getRecElapsed();
+    if (recMaxDurationSec > 0) {
+      recProgressSeek.max = 1000;
+      recProgressSeek.value = Math.round((elapsed / recMaxDurationSec) * 1000);
+    } else {
+      recProgressSeek.max = 1000;
+      recProgressSeek.value = 1000;
+    }
+  }
+
+  function cleanupPreview() {
+    if (recPreviewUrl) {
+      URL.revokeObjectURL(recPreviewUrl);
+      recPreviewUrl = null;
+    }
+    recPreviewVideo.removeAttribute('src');
+    recPreviewVideo.load();
+    isSeeking = false;
+  }
 
   async function finishRecording(requestedFormat, usedMime) {
     if (recordedChunks.length === 0) return;

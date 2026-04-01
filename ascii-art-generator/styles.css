@@ -619,6 +619,32 @@ body {
   animation: blink 1s ease-in-out infinite;
 }
 
+.btn-rec-pause {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-rec-pause:hover {
+  background: var(--bg-hover);
+  border-color: #3a3a3a;
+}
+
+.btn-rec-pause.is-paused {
+  background: rgba(74, 158, 255, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .rec-options {
   display: flex;
   gap: 4px;
@@ -701,6 +727,20 @@ body {
   width: 0%;
   transition: width 0.3s linear;
   pointer-events: none;
+}
+
+.record-bar.is-paused .rec-progress-fill {
+  background: var(--accent);
+  transition: none;
+}
+
+.record-bar.is-paused .rec-time:first-child {
+  color: var(--accent) !important;
+}
+
+.record-bar.is-paused .rec-progress-seek::-webkit-slider-thumb {
+  opacity: 1;
+  background: var(--accent);
 }
 
 .rec-progress-seek {
