@@ -1389,4 +1389,29 @@
 
   const savedTheme = localStorage.getItem('ascii-theme');
   if (savedTheme) setTheme(savedTheme);
+
+  // ── Wallpaper upload ──
+  const bgLayer = document.getElementById('bgLayer');
+  const wallpaperBtn = document.getElementById('wallpaperBtn');
+  const bgFileInput = document.getElementById('bgFileInput');
+
+  wallpaperBtn.addEventListener('click', () => bgFileInput.click());
+
+  bgFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target.result;
+      bgLayer.style.backgroundImage = `url("${url}")`;
+      try { localStorage.setItem('ascii-wallpaper', url); } catch (_) {}
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  const savedWallpaper = localStorage.getItem('ascii-wallpaper');
+  if (savedWallpaper) {
+    bgLayer.style.backgroundImage = `url("${savedWallpaper}")`;
+  }
 })();
