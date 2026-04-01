@@ -21,11 +21,16 @@
   const vcSpeed = document.getElementById('vcSpeed');
   const vcMute = document.getElementById('vcMute');
 
+  const recordBar = document.getElementById('recordBar');
   const recordBtn = document.getElementById('recordBtn');
   const recordLabel = document.getElementById('recordLabel');
   const recFpsSelect = document.getElementById('recFps');
   const recFormatSelect = document.getElementById('recFormat');
-  const recTimer = document.getElementById('recTimer');
+  const recDurationSelect = document.getElementById('recDuration');
+  const recTimeElapsed = document.getElementById('recTimeElapsed');
+  const recTimeTotal = document.getElementById('recTimeTotal');
+  const recProgressFill = document.getElementById('recProgressFill');
+  const recProgressSeek = document.getElementById('recProgressSeek');
 
   const engine = new ASCIIEngine(canvas);
   const animator = new AnimationController();
@@ -41,6 +46,7 @@
   let recordedChunks = [];
   let recStartTime = 0;
   let recTimerInterval = null;
+  let recMaxDurationSec = 300;
 
   function updateSliderFill(slider) {
     const min = parseFloat(slider.min);
@@ -840,6 +846,12 @@
     recordingIndicator.classList.remove('visible');
   }
 
+  // --- Duration selector ---
+  recDurationSelect.addEventListener('change', () => {
+    recMaxDurationSec = parseInt(recDurationSelect.value) || 0;
+    recTimeTotal.textContent = recMaxDurationSec > 0 ? formatRecTime(recMaxDurationSec) : '∞';
+  });
+
   // --- Real-time Recording ---
   recordBtn.addEventListener('click', () => {
     if (isRecording) {
@@ -849,12 +861,19 @@
     }
   });
 
+  function formatRecTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  }
+
   function startRecording() {
     if (!engine.sourceImage && !engine.sourceVideo) return;
     if (isRecording) return;
 
     const fps = parseInt(recFpsSelect.value);
     const format = recFormatSelect.value;
+    recMaxDurationSec = parseInt(recDurationSelect.value) || 0;
 
     let mimeType = '';
     if (format === 'webm') {
@@ -903,11 +922,15 @@
     recStartTime = Date.now();
 
     recordBtn.classList.add('recording');
+    recordBar.classList.add('is-recording');
     recordLabel.textContent = 'Stop';
-    recTimer.textContent = '00:00';
+    recTimeElapsed.textContent = '00:00';
+    recTimeTotal.textContent = recMaxDurationSec > 0 ? formatRecTime(recMaxDurationSec) : '∞';
+    recProgressFill.style.width = '0%';
+    recProgressSeek.value = 0;
     recordingIndicator.classList.add('visible');
 
-    recTimerInterval = setInterval(updateRecTimer, 500);
+    recTimerInterval = setInterval(updateRecProgress, 300);
   }
 
   function stopRecording() {
@@ -919,9 +942,36 @@
     recTimerInterval = null;
 
     recordBtn.classList.remove('recording');
+    recordBar.classList.remove('is-recording');
     recordLabel.textContent = 'Record';
     recordingIndicator.classList.remove('visible');
   }
+
+  function updateRecProgress() {
+    const elapsedSec = (Date.now() - recStartTime) / 1000;
+    recTimeElapsed.textContent = formatRecTime(elapsedSec);
+
+    if (recMaxDurationSec > 0) {
+      const pct = Math.min(100, (elapsedSec / recMaxDurationSec) * 100);
+      recProgressFill.style.width = `${pct}%`;
+      recProgressSeek.value = Math.round(pct * 10);
+
+      if (elapsedSec >= recMaxDurationSec) {
+        stopRecording();
+      }
+    } else {
+      const cycleSec = 600;
+      const pct = ((elapsedSec % cycleSec) / cycleSec) * 100;
+      recProgressFill.style.width = `${pct}%`;
+      recProgressSeek.value = Math.round(pct * 10);
+    }
+  }
+
+  recProgressSeek.addEventListener('input', () => {
+    if (!isRecording || recMaxDurationSec <= 0) return;
+    const pct = recProgressSeek.value / 1000;
+    recProgressFill.style.width = `${pct * 100}%`;
+  });
 
   async function finishRecording(requestedFormat, usedMime) {
     if (recordedChunks.length === 0) return;
@@ -1023,12 +1073,5 @@
     URL.revokeObjectURL(videoEl2.src);
 
     return new Blob([target.buffer], { type: 'video/mp4' });
-  }
-
-  function updateRecTimer() {
-    const elapsed = Math.floor((Date.now() - recStartTime) / 1000);
-    const m = Math.floor(elapsed / 60);
-    const s = elapsed % 60;
-    recTimer.textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
   }
 })();

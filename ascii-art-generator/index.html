@@ -74,23 +74,42 @@
         <input type="file" id="fileInput" accept="image/*,video/webm,video/mp4,video/*,.gif" hidden>
       </div>
 
-      <div class="record-bar">
-        <button class="btn btn-record" id="recordBtn">
-          <span class="rec-dot"></span>
-          <span id="recordLabel">Record</span>
-        </button>
-        <div class="rec-options">
-          <select class="rec-select" id="recFps">
-            <option value="25">25 fps</option>
-            <option value="30" selected>30 fps</option>
-            <option value="60">60 fps</option>
-          </select>
-          <select class="rec-select" id="recFormat">
-            <option value="mp4" selected>MP4</option>
-            <option value="webm">WebM</option>
-          </select>
+      <div class="record-bar" id="recordBar">
+        <div class="rec-row-top">
+          <button class="btn btn-record" id="recordBtn">
+            <span class="rec-dot"></span>
+            <span id="recordLabel">Record</span>
+          </button>
+          <div class="rec-options">
+            <select class="rec-select" id="recFps">
+              <option value="25">25 fps</option>
+              <option value="30" selected>30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+            <select class="rec-select" id="recFormat">
+              <option value="mp4" selected>MP4</option>
+              <option value="webm">WebM</option>
+            </select>
+            <select class="rec-select" id="recDuration">
+              <option value="60">1 min</option>
+              <option value="120">2 min</option>
+              <option value="180">3 min</option>
+              <option value="300" selected>5 min</option>
+              <option value="600">10 min</option>
+              <option value="0">∞ 无限</option>
+            </select>
+          </div>
         </div>
-        <span class="rec-timer" id="recTimer">00:00</span>
+        <div class="rec-row-progress" id="recProgressRow">
+          <span class="rec-time" id="recTimeElapsed">00:00</span>
+          <div class="rec-progress-wrap">
+            <div class="rec-progress-track" id="recProgressTrack">
+              <div class="rec-progress-fill" id="recProgressFill"></div>
+              <input type="range" class="rec-progress-seek" id="recProgressSeek" min="0" max="1000" value="0" step="1">
+            </div>
+          </div>
+          <span class="rec-time" id="recTimeTotal">05:00</span>
+        </div>
       </div>
 
       <div class="controls-scroll">
