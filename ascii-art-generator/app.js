@@ -68,7 +68,10 @@
     const max = parseFloat(slider.max);
     const val = parseFloat(slider.value);
     const pct = ((val - min) / (max - min)) * 100;
-    slider.style.background = `linear-gradient(to right, #666 0%, #666 ${pct}%, #333 ${pct}%, #333 100%)`;
+    const style = getComputedStyle(document.documentElement);
+    const fill = style.getPropertyValue('--slider-fill').trim() || 'rgba(255,255,255,0.35)';
+    const track = style.getPropertyValue('--slider-track').trim() || 'rgba(255,255,255,0.12)';
+    slider.style.background = `linear-gradient(to right, ${fill} 0%, ${fill} ${pct}%, ${track} ${pct}%, ${track} 100%)`;
   }
 
   document.querySelectorAll('.slider').forEach(s => {
@@ -1374,6 +1377,9 @@
       themeIconLight.style.display = 'none';
     }
     localStorage.setItem('ascii-theme', theme);
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.slider, .pfx-slider, .vc-seek').forEach(s => updateSliderFill(s));
+    });
   }
 
   themeToggleBtn.addEventListener('click', () => {
