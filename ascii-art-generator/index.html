@@ -84,10 +84,9 @@
     <div class="sidebar" id="sidebar">
       <div class="preview-box" id="previewBox">
         <canvas id="previewCanvas" width="280" height="120"></canvas>
-        <button class="settings-btn" id="settingsBtn" title="Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
+        <button class="theme-toggle-btn" id="themeToggleBtn" title="Light / Dark">
+          <svg id="themeIconDark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
+          <svg id="themeIconLight" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         </button>
       </div>
 
@@ -240,6 +239,133 @@
             <div class="control-group"><label>Intensity</label><div class="slider-row"><input type="range" class="slider" id="animIntensitySlider" min="1" max="100" value="50" step="1"></div></div>
           </div>
         </div>
+
+        <!-- ===== Post-Processing ===== -->
+        <div class="control-section pfx-section">
+          <div class="section-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span>Post-Processing</span>
+          </div>
+
+          <div class="pfx-item" data-pfx="colorOverlay">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="colorOverlay"><span class="toggle-slider"></span></label>
+              <span>Color Overlay</span>
+            </div>
+            <div class="pfx-body">
+              <div class="control-group toggle-group"><label>Color</label><input type="color" class="color-picker" id="pfxOverlayColor" value="#ff0000"></div>
+              <div class="control-group"><label>Opacity</label><div class="slider-row"><input type="range" class="slider pfx-slider" id="pfxOverlayOpacity" min="0" max="100" value="30" step="1"></div></div>
+              <div class="control-group toggle-group">
+                <label>Blend</label>
+                <select class="pfx-blend-select" id="pfxOverlayBlend">
+                  <option value="multiply" selected>Multiply</option>
+                  <option value="screen">Screen</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="soft-light">Soft Light</option>
+                  <option value="hard-light">Hard Light</option>
+                  <option value="color-dodge">Color Dodge</option>
+                  <option value="color-burn">Color Burn</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="pfx-item" data-pfx="vignette">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="vignette"><span class="toggle-slider"></span></label>
+              <span>Vignette</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="vignette" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="scanLines">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="scanLines"><span class="toggle-slider"></span></label>
+              <span>Scan Lines</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="scanLines" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="crtCurvature">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="crtCurvature"><span class="toggle-slider"></span></label>
+              <span>CRT Curvature</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="crtCurvature" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="chromatic">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="chromatic"><span class="toggle-slider"></span></label>
+              <span>Chromatic</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="chromatic" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="bloom">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="bloom"><span class="toggle-slider"></span></label>
+              <span>Bloom</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="bloom" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="filmGrain">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="filmGrain"><span class="toggle-slider"></span></label>
+              <span>Film Grain</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="filmGrain" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="glitchFx">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="glitchFx"><span class="toggle-slider"></span></label>
+              <span>Glitch</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="glitchFx" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="rgbSplit">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="rgbSplit"><span class="toggle-slider"></span></label>
+              <span>RGB Split</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="rgbSplit" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="blur">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="blur"><span class="toggle-slider"></span></label>
+              <span>Blur</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="blur" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="pixelate">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="pixelate"><span class="toggle-slider"></span></label>
+              <span>Pixelate</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="pixelate" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="halftone">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="halftone"><span class="toggle-slider"></span></label>
+              <span>Halftone</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="halftone" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+
+          <div class="pfx-item" data-pfx="filmDust">
+            <div class="pfx-head">
+              <label class="toggle"><input type="checkbox" class="pfx-toggle" data-pfx="filmDust"><span class="toggle-slider"></span></label>
+              <span>Film Dust</span>
+            </div>
+            <div class="pfx-body"><div class="control-group"><div class="slider-row"><input type="range" class="slider pfx-slider" data-pfx="filmDust" min="1" max="100" value="50" step="1"></div></div></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -280,6 +406,7 @@
 
   <script src="engine.js"></script>
   <script src="animation.js"></script>
+  <script src="postfx.js"></script>
   <script src="gif-encoder.js"></script>
   <script src="app.js"></script>
 </body>

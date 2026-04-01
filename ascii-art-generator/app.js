@@ -38,7 +38,9 @@
 
   const engine = new ASCIIEngine(canvas);
   const animator = new AnimationController();
+  const postfx = new PostFX();
   let animFrameId = null;
+  let postfxLoopId = null;
   let videoRenderLoopId = null;
   let isExporting = false;
   let isVideoMode = false;
@@ -414,6 +416,7 @@
     requestAnimationFrame(() => {
       renderPending = false;
       engine.render(null);
+      postfx.apply(canvas);
       fitCanvasToArea();
     });
   }
@@ -433,6 +436,7 @@
       } else {
         engine.render(null);
       }
+      postfx.apply(canvas);
       fitCanvasToArea();
       videoRenderLoopId = requestAnimationFrame(loop);
     }
@@ -458,6 +462,7 @@
         const dims = engine.getGridDimensions();
         const offsets = animator.getOffsets(dims.rows, dims.cols);
         engine.render(offsets);
+        postfx.apply(canvas);
         fitCanvasToArea();
       }
       animFrameId = requestAnimationFrame(loop);
@@ -483,6 +488,7 @@
       }
       if (engine.imageData) {
         engine.render(null);
+        postfx.apply(canvas);
         fitCanvasToArea();
       }
       ditherAnimLoopId = requestAnimationFrame(loop);
@@ -508,6 +514,7 @@
       }
       if (engine.imageData) {
         engine.render(null);
+        postfx.apply(canvas);
         fitCanvasToArea();
       }
       glitchLoopId = requestAnimationFrame(loop);
@@ -659,6 +666,7 @@
 
   function exportPNG() {
     engine.render(null);
+    postfx.apply(canvas);
     const link = document.createElement('a');
     link.download = 'ascii-art.png';
     link.href = canvas.toDataURL('image/png');
@@ -774,6 +782,7 @@
         const dims = engine.getGridDimensions();
         const offsets = animator.enabled ? animator.getOffsets(dims.rows, dims.cols) : null;
         engine.render(offsets);
+        postfx.apply(canvas);
 
         if (srcCtx) {
           srcCtx.clearRect(0, 0, encW, encH);
@@ -857,6 +866,7 @@
         const dims = engine.getGridDimensions();
         const offsets = animator.enabled ? animator.getOffsets(dims.rows, dims.cols) : null;
         engine.render(offsets);
+        postfx.apply(canvas);
         tmpCtx.drawImage(canvas, 0, 0, gifW, gifH);
         encoder.addFrame(tmpCanvas);
       }
@@ -869,6 +879,7 @@
         const dims = engine.getGridDimensions();
         const offsets = animator.enabled ? animator.getOffsets(dims.rows, dims.cols) : null;
         engine.render(offsets);
+        postfx.apply(canvas);
         tmpCtx.drawImage(canvas, 0, 0, gifW, gifH);
         encoder.addFrame(tmpCanvas);
         await new Promise(r => setTimeout(r, frameDelay));
@@ -1020,12 +1031,14 @@
       ditherLoop: !!ditherAnimLoopId,
       glitchLoop: !!glitchLoopId,
       videoLoop: !!videoRenderLoopId,
+      postfxLoop: !!postfxLoopId,
     };
     if (isVideoMode && !videoEl.paused) videoEl.pause();
     stopAnimationLoop();
     stopDitherAnimLoop();
     stopGlitchLoop();
     stopVideoRenderLoop();
+    stopPostfxLoop();
 
     buildPreview();
   }
@@ -1049,6 +1062,7 @@
       if (animStateBeforePause.animLoop && animator.enabled) startAnimationLoop();
       if (animStateBeforePause.ditherLoop && engine.params.ditherAnimEnabled) startDitherAnimLoop();
       if (animStateBeforePause.glitchLoop && engine.params.renderMode === 'glitch') startGlitchLoop();
+      if (animStateBeforePause.postfxLoop && needsPostfxLoop()) startPostfxLoop();
       animStateBeforePause = null;
     }
   }
@@ -1082,6 +1096,7 @@
       if (animStateBeforePause.animLoop && animator.enabled) startAnimationLoop();
       if (animStateBeforePause.ditherLoop && engine.params.ditherAnimEnabled) startDitherAnimLoop();
       if (animStateBeforePause.glitchLoop && engine.params.renderMode === 'glitch') startGlitchLoop();
+      if (animStateBeforePause.postfxLoop && needsPostfxLoop()) startPostfxLoop();
       animStateBeforePause = null;
     }
   }
@@ -1262,4 +1277,110 @@
 
     return new Blob([target.buffer], { type: 'video/mp4' });
   }
+
+  // ── Post-Processing UI wiring ──
+  const pfxAnimatedEffects = ['filmGrain', 'glitchFx', 'filmDust'];
+
+  function needsPostfxLoop() {
+    return pfxAnimatedEffects.some(k => postfx.effects[k].enabled);
+  }
+
+  function startPostfxLoop() {
+    if (postfxLoopId) return;
+    if (videoRenderLoopId || animFrameId || ditherAnimLoopId || glitchLoopId) return;
+    function loop() {
+      if (!needsPostfxLoop()) { postfxLoopId = null; return; }
+      if (engine.imageData) {
+        engine.render(null);
+        postfx.apply(canvas);
+        fitCanvasToArea();
+      }
+      postfxLoopId = requestAnimationFrame(loop);
+    }
+    loop();
+  }
+
+  function stopPostfxLoop() {
+    if (postfxLoopId) { cancelAnimationFrame(postfxLoopId); postfxLoopId = null; }
+  }
+
+  function onPostfxChange() {
+    if (needsPostfxLoop() && !videoRenderLoopId && !animFrameId && !ditherAnimLoopId && !glitchLoopId) {
+      startPostfxLoop();
+    } else {
+      stopPostfxLoop();
+      scheduleRender();
+    }
+  }
+
+  document.querySelectorAll('.pfx-toggle').forEach(toggle => {
+    toggle.addEventListener('change', () => {
+      const key = toggle.dataset.pfx;
+      postfx.effects[key].enabled = toggle.checked;
+      onPostfxChange();
+    });
+  });
+
+  document.querySelectorAll('.pfx-slider[data-pfx]').forEach(slider => {
+    updateSliderFill(slider);
+    slider.addEventListener('input', () => {
+      const key = slider.dataset.pfx;
+      postfx.effects[key].intensity = parseFloat(slider.value);
+      updateSliderFill(slider);
+      if (!needsPostfxLoop()) scheduleRender();
+    });
+  });
+
+  const pfxOverlayColor = document.getElementById('pfxOverlayColor');
+  const pfxOverlayOpacity = document.getElementById('pfxOverlayOpacity');
+  const pfxOverlayBlend = document.getElementById('pfxOverlayBlend');
+
+  if (pfxOverlayColor) {
+    pfxOverlayColor.addEventListener('input', (e) => {
+      postfx.effects.colorOverlay.color = e.target.value;
+      scheduleRender();
+    });
+  }
+
+  if (pfxOverlayOpacity) {
+    updateSliderFill(pfxOverlayOpacity);
+    pfxOverlayOpacity.addEventListener('input', (e) => {
+      postfx.effects.colorOverlay.opacity = parseFloat(e.target.value);
+      updateSliderFill(pfxOverlayOpacity);
+      scheduleRender();
+    });
+  }
+
+  if (pfxOverlayBlend) {
+    pfxOverlayBlend.addEventListener('change', (e) => {
+      postfx.effects.colorOverlay.blend = e.target.value;
+      scheduleRender();
+    });
+  }
+
+  // ── Theme toggle ──
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const themeIconDark = document.getElementById('themeIconDark');
+  const themeIconLight = document.getElementById('themeIconLight');
+
+  function setTheme(theme) {
+    if (theme === 'light') {
+      document.body.classList.add('light');
+      themeIconDark.style.display = 'none';
+      themeIconLight.style.display = 'block';
+    } else {
+      document.body.classList.remove('light');
+      themeIconDark.style.display = 'block';
+      themeIconLight.style.display = 'none';
+    }
+    localStorage.setItem('ascii-theme', theme);
+  }
+
+  themeToggleBtn.addEventListener('click', () => {
+    const next = document.body.classList.contains('light') ? 'dark' : 'light';
+    setTheme(next);
+  });
+
+  const savedTheme = localStorage.getItem('ascii-theme');
+  if (savedTheme) setTheme(savedTheme);
 })();
