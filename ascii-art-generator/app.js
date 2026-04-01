@@ -55,6 +55,9 @@
   let recMaxDurationSec = 300;
   let recPreviewUrl = null;
   let isSeeking = false;
+  let recAutoExport = false;
+  let recUsedFormat = 'mp4';
+  let recUsedMime = '';
 
   function updateSliderFill(slider) {
     const min = parseFloat(slider.min);
@@ -601,6 +604,10 @@
     isExporting = true;
 
     try {
+      if ((format === 'mp4' || format === 'webm') && recordedChunks.length > 0) {
+        await exportRecordedChunks(format);
+        return;
+      }
       switch (format) {
         case 'png':
           exportPNG();
@@ -621,6 +628,31 @@
     } finally {
       isExporting = false;
     }
+  }
+
+  async function exportRecordedChunks(format) {
+    const usedMime = recUsedMime || 'video/webm';
+    const isWebm = usedMime.includes('webm');
+    const rawBlob = new Blob(recordedChunks, { type: isWebm ? 'video/webm' : 'video/mp4' });
+    recordedChunks = [];
+
+    if (format === 'mp4' && isWebm && typeof VideoEncoder !== 'undefined') {
+      recordingIndicator.querySelector('span').textContent = 'Converting to MP4...';
+      recordingIndicator.classList.add('visible');
+      try {
+        const mp4Blob = await convertWebmToMp4(rawBlob);
+        downloadBlob(mp4Blob, 'ascii-art-rec.mp4');
+      } catch (err) {
+        console.error('MP4 conversion failed, falling back to WebM:', err);
+        downloadBlob(rawBlob, 'ascii-art-rec.webm');
+      }
+      recordingIndicator.querySelector('span').textContent = 'Recording...';
+      recordingIndicator.classList.remove('visible');
+    } else {
+      const ext = isWebm ? 'webm' : 'mp4';
+      downloadBlob(rawBlob, `ascii-art-rec.${ext}`);
+    }
+    isExporting = false;
   }
 
   function exportPNG() {
@@ -937,8 +969,12 @@
     };
 
     mediaRecorder.onstop = () => {
-      finishRecording(format, mimeType);
+      if (recAutoExport) finishRecording(format, mimeType);
     };
+
+    recUsedFormat = format;
+    recUsedMime = mimeType;
+    recAutoExport = false;
 
     mediaRecorder.start(1000);
     isRecording = true;
@@ -998,6 +1034,7 @@
     if (isRecPaused) {
       mediaRecorder.resume();
     }
+    recAutoExport = false;
     mediaRecorder.stop();
     isRecording = false;
     isRecPaused = false;
