@@ -4,7 +4,6 @@
   const dropZone = document.getElementById('dropZone');
   const canvasArea = document.getElementById('canvasArea');
   const fileInput = document.getElementById('fileInput');
-  const uploadBtn = document.getElementById('uploadBtn');
   const exportBtn = document.getElementById('exportBtn');
   const exportModal = document.getElementById('exportModal');
   const modalClose = document.getElementById('modalClose');
@@ -39,6 +38,8 @@
   const sourcePreviewImg = document.getElementById('sourcePreviewImg');
   const sourcePreviewVid = document.getElementById('sourcePreviewVid');
   const lpPreview = document.getElementById('lpPreview');
+  const lpGallery = document.getElementById('lpGallery');
+  const lpAddBtn = document.getElementById('lpAddBtn');
 
   const engine = new ASCIIEngine(canvas);
   const animator = new AnimationController();
@@ -49,6 +50,11 @@
   let isExporting = false;
   let isVideoMode = false;
   let isGifMode = false;
+
+  // Multi-source gallery state
+  const sourceLibrary = []; // { id, type:'image'|'gif'|'video', dataUrl, file, thumbEl }
+  let activeSourceId = null;
+  let sourceIdCounter = 0;
   const recordingIndicator = document.getElementById('recordingIndicator');
 
   let isRecording = false;
@@ -96,6 +102,92 @@
   // --- Unified file handler ---
   function handleFileUpload(file) {
     if (!file) return;
+    const category = getFileCategory(file);
+    if (category === 'unknown') return;
+    addToGallery(file, category);
+  }
+
+  function handleMultipleFiles(files) {
+    for (let i = 0; i < files.length; i++) handleFileUpload(files[i]);
+  }
+
+  // --- Gallery management ---
+  function addToGallery(file, category) {
+    const id = ++sourceIdCounter;
+    const blobUrl = URL.createObjectURL(file);
+    const entry = { id, type: category, blobUrl, file, thumbEl: null };
+    sourceLibrary.push(entry);
+
+    const thumb = document.createElement('div');
+    thumb.className = 'lp-thumb';
+    thumb.dataset.srcId = id;
+
+    if (category === 'video') {
+      const vid = document.createElement('video');
+      vid.src = blobUrl;
+      vid.muted = true;
+      vid.preload = 'metadata';
+      thumb.appendChild(vid);
+    } else {
+      const img = document.createElement('img');
+      img.src = blobUrl;
+      thumb.appendChild(img);
+    }
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'lp-thumb-close';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFromGallery(id);
+    });
+    thumb.appendChild(closeBtn);
+
+    thumb.addEventListener('click', () => activateSource(id));
+    entry.thumbEl = thumb;
+    lpGallery.insertBefore(thumb, lpAddBtn);
+
+    activateSource(id);
+  }
+
+  function removeFromGallery(id) {
+    const idx = sourceLibrary.findIndex(s => s.id === id);
+    if (idx === -1) return;
+    const entry = sourceLibrary[idx];
+    URL.revokeObjectURL(entry.blobUrl);
+    entry.thumbEl.remove();
+    sourceLibrary.splice(idx, 1);
+
+    if (activeSourceId === id) {
+      if (sourceLibrary.length > 0) {
+        activateSource(sourceLibrary[Math.max(0, idx - 1)].id);
+      } else {
+        activeSourceId = null;
+        clearActiveSource();
+      }
+    }
+  }
+
+  function clearActiveSource() {
+    stopVideoRenderLoop();
+    stopAnimationLoop();
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+    videoControls.classList.remove('visible');
+    isVideoMode = false;
+    isGifMode = false;
+    canvas.style.display = 'none';
+    sourcePreviewImg.style.display = 'none';
+    sourcePreviewVid.style.display = 'none';
+    sourcePreviewVid.pause();
+    sourcePreviewVid.removeAttribute('src');
+    dropZone.style.display = '';
+  }
+
+  function activateSource(id) {
+    const entry = sourceLibrary.find(s => s.id === id);
+    if (!entry) return;
+
     stopVideoRenderLoop();
     stopAnimationLoop();
     videoEl.pause();
@@ -104,13 +196,45 @@
     isVideoMode = false;
     isGifMode = false;
 
-    const category = getFileCategory(file);
-    if (category === 'video') {
-      handleVideoLoad(file);
-    } else if (category === 'gif') {
-      handleGifLoad(file);
-    } else if (category === 'image') {
-      handleImageLoad(file);
+    activeSourceId = id;
+    lpGallery.querySelectorAll('.lp-thumb').forEach(t => t.classList.remove('active'));
+    entry.thumbEl.classList.add('active');
+
+    showSourcePreview(entry.type, entry.blobUrl);
+
+    if (entry.type === 'image') {
+      const img = new Image();
+      img.onload = () => {
+        engine.loadImage(img);
+        showCanvas();
+        scheduleRender();
+        engine.renderPreview(previewCanvas);
+      };
+      img.src = entry.blobUrl;
+    } else if (entry.type === 'gif') {
+      isGifMode = true;
+      const img = new Image();
+      img.onload = () => {
+        engine.loadAnimatedImage(img);
+        showCanvas();
+        startVideoRenderLoop();
+        engine.renderPreview(previewCanvas);
+      };
+      img.src = entry.blobUrl;
+    } else if (entry.type === 'video') {
+      isVideoMode = true;
+      videoEl.src = entry.blobUrl;
+      videoEl.load();
+      videoEl.onloadeddata = () => {
+        engine.loadVideo(videoEl);
+        showCanvas();
+        videoControls.classList.add('visible');
+        vcDuration.textContent = formatTime(videoEl.duration);
+        videoEl.play();
+        updatePlayPauseIcon();
+        startVideoRenderLoop();
+        engine.renderPreview(previewCanvas);
+      };
     }
   }
 
@@ -132,55 +256,6 @@
     }
   }
 
-  function handleImageLoad(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        engine.loadImage(img);
-        showCanvas();
-        scheduleRender();
-        engine.renderPreview(previewCanvas);
-      };
-      img.src = e.target.result;
-      showSourcePreview('image', e.target.result);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function handleGifLoad(file) {
-    isGifMode = true;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      engine.loadAnimatedImage(img);
-      showCanvas();
-      startVideoRenderLoop();
-      engine.renderPreview(previewCanvas);
-    };
-    img.src = url;
-    showSourcePreview('gif', url);
-  }
-
-  function handleVideoLoad(file) {
-    isVideoMode = true;
-    const url = URL.createObjectURL(file);
-    videoEl.src = url;
-    videoEl.load();
-    showSourcePreview('video', url);
-
-    videoEl.onloadeddata = () => {
-      engine.loadVideo(videoEl);
-      showCanvas();
-      videoControls.classList.add('visible');
-      vcDuration.textContent = formatTime(videoEl.duration);
-      videoEl.play();
-      updatePlayPauseIcon();
-      startVideoRenderLoop();
-      engine.renderPreview(previewCanvas);
-    };
-  }
-
   function showCanvas() {
     canvas.style.display = 'block';
   }
@@ -192,14 +267,14 @@
     zone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('drag-over');
-      handleFileUpload(e.dataTransfer.files[0]);
+      handleMultipleFiles(e.dataTransfer.files);
     });
   });
 
   dropZone.addEventListener('click', () => fileInput.click());
-  uploadBtn.addEventListener('click', () => fileInput.click());
+  lpAddBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', (e) => {
-    handleFileUpload(e.target.files[0]);
+    handleMultipleFiles(e.target.files);
     e.target.value = '';
   });
 
