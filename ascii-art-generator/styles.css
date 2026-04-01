@@ -59,7 +59,7 @@ body {
   display: flex;
   width: calc(100vw - 48px);
   height: calc(100vh - 48px);
-  max-width: 1440px;
+  max-width: 1600px;
   max-height: 960px;
   border-radius: 16px;
   overflow: hidden;
@@ -93,28 +93,13 @@ body {
   image-rendering: crisp-edges;
 }
 
-.drop-zone {
-  position: absolute;
-  inset: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.5px dashed rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
-}
-
-.drop-zone.hidden { display: none; }
-
-.drop-zone.drag-over {
-  border-color: var(--accent);
+/* (old .drop-zone removed, now using .lp-drop in left panel) */
+.lp-drop.drag-over {
   background: var(--accent-dim);
 }
 
-.drop-zone p {
-  color: var(--text-secondary);
-  font-size: 14px;
-  pointer-events: none;
+.lp-drop.drag-over span {
+  color: var(--accent);
 }
 
 /* ══════════════════════════════════════
@@ -221,7 +206,104 @@ body {
 .fullscreen-btn:hover { background: var(--glass-surface-hover); color: #fff; }
 
 /* ══════════════════════════════════════
-   Sidebar — Glass Panel
+   Left Panel — Source Preview
+   ══════════════════════════════════════ */
+.left-panel {
+  width: 240px;
+  min-width: 240px;
+  background: rgba(20, 20, 22, 0.72);
+  backdrop-filter: blur(60px) saturate(1.8);
+  -webkit-backdrop-filter: blur(60px) saturate(1.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.lp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+}
+
+.lp-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.lp-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.lp-icon-btn {
+  width: 26px; height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-light);
+  background: var(--glass-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.lp-icon-btn:hover {
+  background: var(--glass-surface-hover);
+  color: var(--text-primary);
+}
+
+.lp-preview {
+  flex: 1;
+  margin: 0 10px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.lp-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.lp-drop span {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.lp-source-img,
+.lp-source-vid {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lp-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 12px;
+}
+
+.lp-buttons .btn {
+  font-size: 11.5px;
+  padding: 7px 10px;
+}
+
+/* ══════════════════════════════════════
+   Right Panel — Controls Sidebar
    ══════════════════════════════════════ */
 .sidebar {
   width: var(--sidebar-width);
@@ -229,70 +311,11 @@ body {
   background: rgba(22, 22, 24, 0.68);
   backdrop-filter: blur(60px) saturate(1.8);
   -webkit-backdrop-filter: blur(60px) saturate(1.8);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-}
-
-/* Preview area */
-.preview-box {
-  position: relative;
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-#previewCanvas {
-  width: 100%;
-  height: 100px;
-  border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--glass-border);
-}
-
-/* Wallpaper change button */
-.wallpaper-btn {
-  position: absolute;
-  top: 22px; right: 56px;
-  width: 28px; height: 28px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border-light);
-  background: var(--glass-surface);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.wallpaper-btn:hover {
-  background: var(--glass-surface-hover);
-  color: var(--text-primary);
-}
-
-/* Theme toggle in preview */
-.theme-toggle-btn {
-  position: absolute;
-  top: 22px; right: 22px;
-  width: 28px; height: 28px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border-light);
-  background: var(--glass-surface);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.theme-toggle-btn:hover {
-  background: var(--glass-surface-hover);
-  color: var(--text-primary);
 }
 
 /* ══════════════════════════════════════
@@ -966,12 +989,22 @@ body.light .canvas-area {
   background: rgba(245, 245, 248, 0.55);
 }
 
+body.light .left-panel {
+  background: rgba(245, 245, 248, 0.65);
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
 body.light .sidebar {
   background: rgba(245, 245, 248, 0.65);
   border-left-color: rgba(0, 0, 0, 0.06);
 }
 
-body.light .drop-zone { border-color: rgba(0,0,0,0.15); }
+body.light .lp-preview {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light .lp-drop span { color: rgba(0,0,0,0.35); }
 
 body.light .video-controls,
 body.light .record-bar {
@@ -1001,10 +1034,14 @@ body.light .fullscreen-btn {
   color: rgba(0,0,0,0.45);
 }
 
-body.light .theme-toggle-btn {
+body.light .lp-icon-btn {
   background: rgba(0,0,0,0.04);
   border-color: rgba(0,0,0,0.08);
   color: rgba(0,0,0,0.4);
+}
+body.light .lp-icon-btn:hover {
+  background: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.6);
 }
 
 body.light .modal-content {
@@ -1044,19 +1081,22 @@ input[type="range"] {
 /* ══════════════════════════════════════
    Responsive
    ══════════════════════════════════════ */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .app {
     flex-direction: column;
     width: calc(100vw - 16px);
     height: calc(100vh - 16px);
     border-radius: 12px;
   }
+  .left-panel {
+    display: none;
+  }
   .sidebar {
     width: 100%;
     min-width: unset;
-    height: 50%;
+    height: 45%;
     border-left: none;
     border-top: 1px solid var(--glass-border);
   }
-  .canvas-area { height: 50%; }
+  .canvas-area { height: 55%; }
 }

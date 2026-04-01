@@ -36,6 +36,10 @@
   const recProgressSeek = document.getElementById('recProgressSeek');
   const recPreviewVideo = document.getElementById('recPreviewVideo');
 
+  const sourcePreviewImg = document.getElementById('sourcePreviewImg');
+  const sourcePreviewVid = document.getElementById('sourcePreviewVid');
+  const lpPreview = document.getElementById('lpPreview');
+
   const engine = new ASCIIEngine(canvas);
   const animator = new AnimationController();
   const postfx = new PostFX();
@@ -110,6 +114,24 @@
     }
   }
 
+  function showSourcePreview(type, src) {
+    sourcePreviewImg.style.display = 'none';
+    sourcePreviewVid.style.display = 'none';
+    sourcePreviewVid.pause();
+    sourcePreviewVid.removeAttribute('src');
+    dropZone.style.display = 'none';
+
+    if (type === 'image' || type === 'gif') {
+      sourcePreviewImg.src = src;
+      sourcePreviewImg.style.display = 'block';
+    } else if (type === 'video') {
+      sourcePreviewVid.src = src;
+      sourcePreviewVid.style.display = 'block';
+      sourcePreviewVid.load();
+      sourcePreviewVid.play();
+    }
+  }
+
   function handleImageLoad(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -121,6 +143,7 @@
         engine.renderPreview(previewCanvas);
       };
       img.src = e.target.result;
+      showSourcePreview('image', e.target.result);
     };
     reader.readAsDataURL(file);
   }
@@ -136,6 +159,7 @@
       engine.renderPreview(previewCanvas);
     };
     img.src = url;
+    showSourcePreview('gif', url);
   }
 
   function handleVideoLoad(file) {
@@ -143,6 +167,7 @@
     const url = URL.createObjectURL(file);
     videoEl.src = url;
     videoEl.load();
+    showSourcePreview('video', url);
 
     videoEl.onloadeddata = () => {
       engine.loadVideo(videoEl);
@@ -157,26 +182,21 @@
   }
 
   function showCanvas() {
-    dropZone.classList.add('hidden');
     canvas.style.display = 'block';
   }
 
-  // --- Drag & drop ---
-  canvasArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
+  // --- Drag & drop (left panel + canvas area) ---
+  [lpPreview, canvasArea].forEach(zone => {
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      handleFileUpload(e.dataTransfer.files[0]);
+    });
   });
 
-  canvasArea.addEventListener('dragleave', () => {
-    dropZone.classList.remove('drag-over');
-  });
-
-  canvasArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    handleFileUpload(e.dataTransfer.files[0]);
-  });
-
+  dropZone.addEventListener('click', () => fileInput.click());
   uploadBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', (e) => {
     handleFileUpload(e.target.files[0]);
