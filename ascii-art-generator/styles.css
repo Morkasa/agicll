@@ -196,7 +196,8 @@ body {
   opacity: 1;
 }
 
-.canvas-area:has(.video-controls.visible) .fullscreen-btn {
+.canvas-area:has(.video-controls.visible) .fullscreen-btn,
+.canvas-area:has(.record-bar.is-recording) .fullscreen-btn {
   bottom: 52px;
 }
 
@@ -565,143 +566,105 @@ body {
   gap: 8px;
 }
 
-/* Record Bar */
+/* Record Bar — overlay at bottom of canvas-area */
 .record-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  align-items: center;
+  padding: 8px 14px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.88));
+  z-index: 12;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.canvas-area:has(.video-controls.visible) .record-bar {
+  bottom: 44px;
+}
+
+.canvas-area:hover .record-bar,
+.record-bar.is-recording {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .rec-row-top {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  width: 100%;
 }
 
-.btn-record {
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 8px;
+.rec-ctl-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: #ddd;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 6px;
   white-space: nowrap;
 }
 
-.btn-record:hover {
-  background: var(--bg-hover);
-  border-color: #3a3a3a;
+.rec-ctl-btn:hover {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
 }
 
-.btn-record.recording {
-  background: rgba(255, 50, 50, 0.15);
-  border-color: #e53e3e;
-  color: #ff6b6b;
+#recordBtn {
+  width: auto;
 }
 
 .rec-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #e53e3e;
   flex-shrink: 0;
 }
 
-.btn-record.recording .rec-dot {
+.rec-ctl-btn.recording {
+  background: rgba(255, 50, 50, 0.3);
+  color: #ff6b6b;
+}
+
+.rec-ctl-btn.recording .rec-dot {
   animation: blink 1s ease-in-out infinite;
 }
 
-.btn-rec-pause {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  font-size: 13px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-rec-pause:hover {
-  background: var(--bg-hover);
-  border-color: #3a3a3a;
-}
-
-.btn-rec-pause.is-paused {
-  background: rgba(74, 158, 255, 0.15);
-  border-color: var(--accent);
+.rec-pause-btn.is-paused {
+  background: rgba(74, 158, 255, 0.25);
   color: var(--accent);
-}
-
-.rec-options {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-
-.rec-select {
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 12px;
-  cursor: pointer;
-  outline: none;
-  flex: 1;
-  min-width: 0;
-}
-
-.rec-select:hover {
-  border-color: #3a3a3a;
-  color: var(--text-primary);
-}
-
-.rec-select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.record-bar.is-recording .rec-options .rec-select {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* Recording progress row */
-.rec-row-progress {
-  display: none;
-  align-items: center;
-  gap: 8px;
-}
-
-.record-bar.is-recording .rec-row-progress {
-  display: flex;
 }
 
 .rec-time {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
+  color: #aaa;
   min-width: 34px;
+  text-align: center;
   flex-shrink: 0;
 }
 
-.record-bar.is-recording .rec-time:first-child {
+.record-bar.is-recording .rec-time:first-of-type {
   color: #ff6b6b;
+}
+
+.record-bar.is-paused .rec-time:first-of-type {
+  color: var(--accent);
 }
 
 .rec-progress-wrap {
@@ -711,9 +674,9 @@ body {
 
 .rec-progress-track {
   position: relative;
-  height: 6px;
-  background: #2a2a2a;
-  border-radius: 3px;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
   overflow: visible;
 }
 
@@ -723,7 +686,7 @@ body {
   top: 0;
   height: 100%;
   background: #e53e3e;
-  border-radius: 3px;
+  border-radius: 2px;
   width: 0%;
   transition: width 0.3s linear;
   pointer-events: none;
@@ -732,15 +695,6 @@ body {
 .record-bar.is-paused .rec-progress-fill {
   background: var(--accent);
   transition: none;
-}
-
-.record-bar.is-paused .rec-time:first-child {
-  color: var(--accent) !important;
-}
-
-.record-bar.is-paused .rec-progress-seek::-webkit-slider-thumb {
-  opacity: 1;
-  background: var(--accent);
 }
 
 .rec-progress-seek {
@@ -761,8 +715,8 @@ body {
 .rec-progress-seek::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #ff6b6b;
   border: 2px solid #fff;
@@ -772,19 +726,60 @@ body {
   transition: opacity 0.15s;
 }
 
+.record-bar.is-paused .rec-progress-seek::-webkit-slider-thumb {
+  opacity: 1;
+  background: var(--accent);
+}
+
 .rec-progress-track:hover .rec-progress-seek::-webkit-slider-thumb,
 .rec-progress-seek:active::-webkit-slider-thumb {
   opacity: 1;
 }
 
 .rec-progress-seek::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #ff6b6b;
   border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   cursor: pointer;
+}
+
+.rec-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.08);
+  color: #aaa;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.rec-select:hover {
+  border-color: rgba(255,255,255,0.25);
+  color: #ddd;
+}
+
+.rec-select option {
+  background: #222;
+  color: #ccc;
+}
+
+.record-bar.is-recording .rec-select {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.record-bar:not(.is-recording) .rec-progress-wrap,
+.record-bar:not(.is-recording) #recTimeElapsed,
+.record-bar:not(.is-recording) #recTimeTotal,
+.record-bar:not(.is-recording) #recPauseBtn {
+  display: none;
 }
 
 /* Export Modal */

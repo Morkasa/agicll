@@ -59,6 +59,8 @@
   let recUsedFormat = 'mp4';
   let recUsedMime = '';
 
+  let animStateBeforePause = null;
+
   function updateSliderFill(slider) {
     const min = parseFloat(slider.min);
     const max = parseFloat(slider.max);
@@ -985,7 +987,7 @@
     recordBtn.classList.add('recording');
     recordBar.classList.add('is-recording');
     recordBar.classList.remove('is-paused');
-    recordLabel.textContent = 'Stop';
+    recordLabel.textContent = 'STOP';
     recPauseBtn.style.display = 'flex';
     recPauseIcon.style.display = 'block';
     recResumeIcon.style.display = 'none';
@@ -1012,6 +1014,19 @@
     recordBar.classList.add('is-paused');
     recordingIndicator.querySelector('span').textContent = 'Paused';
 
+    animStateBeforePause = {
+      videoPlaying: isVideoMode && !videoEl.paused,
+      animLoop: !!animFrameId,
+      ditherLoop: !!ditherAnimLoopId,
+      glitchLoop: !!glitchLoopId,
+      videoLoop: !!videoRenderLoopId,
+    };
+    if (isVideoMode && !videoEl.paused) videoEl.pause();
+    stopAnimationLoop();
+    stopDitherAnimLoop();
+    stopGlitchLoop();
+    stopVideoRenderLoop();
+
     buildPreview();
   }
 
@@ -1027,10 +1042,20 @@
     recPauseBtn.classList.remove('is-paused');
     recordBar.classList.remove('is-paused');
     recordingIndicator.querySelector('span').textContent = 'Recording...';
+
+    if (animStateBeforePause) {
+      if (animStateBeforePause.videoPlaying) videoEl.play();
+      if (animStateBeforePause.videoLoop) startVideoRenderLoop();
+      if (animStateBeforePause.animLoop && animator.enabled) startAnimationLoop();
+      if (animStateBeforePause.ditherLoop && engine.params.ditherAnimEnabled) startDitherAnimLoop();
+      if (animStateBeforePause.glitchLoop && engine.params.renderMode === 'glitch') startGlitchLoop();
+      animStateBeforePause = null;
+    }
   }
 
   function stopRecording() {
     if (!isRecording || !mediaRecorder) return;
+    const wasPaused = isRecPaused;
     if (isRecPaused) {
       mediaRecorder.resume();
     }
@@ -1045,11 +1070,20 @@
     recordBtn.classList.remove('recording');
     recordBar.classList.remove('is-recording');
     recordBar.classList.remove('is-paused');
-    recordLabel.textContent = 'Record';
+    recordLabel.textContent = 'REC';
     recPauseBtn.style.display = 'none';
     recPauseBtn.classList.remove('is-paused');
     recordingIndicator.classList.remove('visible');
     cleanupPreview();
+
+    if (wasPaused && animStateBeforePause) {
+      if (animStateBeforePause.videoPlaying) videoEl.play();
+      if (animStateBeforePause.videoLoop) startVideoRenderLoop();
+      if (animStateBeforePause.animLoop && animator.enabled) startAnimationLoop();
+      if (animStateBeforePause.ditherLoop && engine.params.ditherAnimEnabled) startDitherAnimLoop();
+      if (animStateBeforePause.glitchLoop && engine.params.renderMode === 'glitch') startGlitchLoop();
+      animStateBeforePause = null;
+    }
   }
 
   function updateRecProgress() {
@@ -1075,7 +1109,6 @@
 
   // --- Seek preview when paused ---
   recProgressSeek.addEventListener('input', () => {
-    if (!isRecording) return;
     if (!isRecPaused) return;
     isSeeking = true;
 
