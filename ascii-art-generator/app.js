@@ -686,7 +686,6 @@
 
   // --- Export ---
   exportBtn.addEventListener('click', () => {
-    if (!engine.sourceImage && !engine.sourceVideo) return;
     exportModal.classList.add('visible');
   });
 
