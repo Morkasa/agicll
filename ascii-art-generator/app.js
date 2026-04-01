@@ -802,8 +802,12 @@
       return;
     }
 
-    const fps = 30;
-    const totalDuration = isVideoMode ? Math.min(videoEl.duration, 30) : 5;
+    const exportDurEl = document.getElementById('exportDuration');
+    const exportFpsEl = document.getElementById('exportFps');
+    const fps = parseInt(exportFpsEl.value, 10) || 30;
+    const userDuration = parseInt(exportDurEl.value, 10) || 30;
+    const maxDuration = isVideoMode ? Math.min(videoEl.duration, userDuration) : userDuration;
+    const totalDuration = Math.min(maxDuration, 180);
     const totalFrames = Math.floor(totalDuration * fps);
     const frameDurUs = 1000000 / fps;
 
