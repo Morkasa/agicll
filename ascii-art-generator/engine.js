@@ -57,6 +57,14 @@ class ASCIIEngine {
       ditherAnimType: 'shift',
       ditherAnimSpeed: 50,
       ditherAnimIntensity: 50,
+      patternType: 'halftone',
+      patternSize: 8,
+      patternAngle: 45,
+      patternContrast: 50,
+      patternInvert: false,
+      patternOrigColors: false,
+      patternFgColor: '#000000',
+      patternBgColor: '#ffffff',
     };
   }
 
@@ -157,6 +165,7 @@ class ASCIIEngine {
     switch (this.params.renderMode) {
       case 'dithering': return this.renderDithering();
       case 'glitch': return this.renderGlitch();
+      case 'pattern': return this.renderPattern();
     }
 
     const { width: imgW, height: imgH, data: imgData } = this.imageData;
@@ -531,6 +540,328 @@ class ASCIIEngine {
     return m
       ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
       : { r: 0, g: 0, b: 0 };
+  }
+
+  renderPattern() {
+    const { width: imgW, height: imgH, data: imgData } = this.imageData;
+    this.canvas.width = imgW;
+    this.canvas.height = imgH;
+    this.asciiGrid = null;
+    this.colorGrid = null;
+    const ctx = this.ctx;
+    const p = this.params;
+
+    const fg = this._hexToRgb(p.patternFgColor);
+    const bg = this._hexToRgb(p.patternBgColor);
+    const contrastFactor = 1 + (p.patternContrast - 50) / 50;
+
+    ctx.fillStyle = p.patternInvert
+      ? `rgb(${fg.r},${fg.g},${fg.b})`
+      : `rgb(${bg.r},${bg.g},${bg.b})`;
+    ctx.fillRect(0, 0, imgW, imgH);
+
+    switch (p.patternType) {
+      case 'halftone': this._renderHalftone(ctx, imgW, imgH, imgData, fg, bg, contrastFactor); break;
+      case 'colorHalftone': this._renderColorHalftone(ctx, imgW, imgH, imgData, contrastFactor); break;
+      case 'dots': this._renderDots(ctx, imgW, imgH, imgData, fg, bg, contrastFactor); break;
+      case 'grid': this._renderGrid(ctx, imgW, imgH, imgData, fg, bg, contrastFactor); break;
+      case 'noise': this._renderNoise(ctx, imgW, imgH, imgData, fg, bg, contrastFactor); break;
+      case 'circles': this._renderCircles(ctx, imgW, imgH, imgData, fg, bg, contrastFactor); break;
+    }
+  }
+
+  _sampleBrightness(imgData, imgW, imgH, cx, cy, radius) {
+    const x0 = Math.max(0, Math.floor(cx - radius));
+    const y0 = Math.max(0, Math.floor(cy - radius));
+    const x1 = Math.min(imgW - 1, Math.ceil(cx + radius));
+    const y1 = Math.min(imgH - 1, Math.ceil(cy + radius));
+    let sum = 0, count = 0;
+    const step = Math.max(1, Math.floor(radius / 3));
+    for (let y = y0; y <= y1; y += step) {
+      for (let x = x0; x <= x1; x += step) {
+        const idx = (y * imgW + x) * 4;
+        sum += 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+        count++;
+      }
+    }
+    return count > 0 ? sum / count / 255 : 0.5;
+  }
+
+  _sampleColor(imgData, imgW, imgH, cx, cy, radius) {
+    const x0 = Math.max(0, Math.floor(cx - radius));
+    const y0 = Math.max(0, Math.floor(cy - radius));
+    const x1 = Math.min(imgW - 1, Math.ceil(cx + radius));
+    const y1 = Math.min(imgH - 1, Math.ceil(cy + radius));
+    let rSum = 0, gSum = 0, bSum = 0, count = 0;
+    const step = Math.max(1, Math.floor(radius / 3));
+    for (let y = y0; y <= y1; y += step) {
+      for (let x = x0; x <= x1; x += step) {
+        const idx = (y * imgW + x) * 4;
+        rSum += imgData[idx];
+        gSum += imgData[idx + 1];
+        bSum += imgData[idx + 2];
+        count++;
+      }
+    }
+    if (count === 0) return { r: 128, g: 128, b: 128 };
+    return { r: Math.round(rSum / count), g: Math.round(gSum / count), b: Math.round(bSum / count) };
+  }
+
+  _renderHalftone(ctx, imgW, imgH, imgData, fg, bg, contrastFactor) {
+    const p = this.params;
+    const cellSize = Math.max(2, p.patternSize);
+    const angle = (p.patternAngle * Math.PI) / 180;
+    const maxR = cellSize * 0.55;
+    const inv = p.patternInvert;
+    const useOrig = p.patternOrigColors;
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const diagLen = Math.sqrt(imgW * imgW + imgH * imgH);
+    const gridCols = Math.ceil(diagLen / cellSize) + 2;
+    const gridRows = Math.ceil(diagLen / cellSize) + 2;
+    const offsetX = imgW / 2;
+    const offsetY = imgH / 2;
+
+    for (let gr = -gridRows; gr <= gridRows; gr++) {
+      for (let gc = -gridCols; gc <= gridCols; gc++) {
+        const gx = gc * cellSize;
+        const gy = gr * cellSize;
+        const cx = cos * gx - sin * gy + offsetX;
+        const cy = sin * gx + cos * gy + offsetY;
+
+        if (cx < -cellSize || cx > imgW + cellSize || cy < -cellSize || cy > imgH + cellSize) continue;
+
+        let brightness = this._sampleBrightness(imgData, imgW, imgH, cx, cy, cellSize / 2);
+        brightness = Math.max(0, Math.min(1, 0.5 + (brightness - 0.5) * contrastFactor));
+
+        const darkness = inv ? brightness : 1 - brightness;
+        const r = darkness * maxR;
+        if (r < 0.3) continue;
+
+        if (useOrig) {
+          const c = this._sampleColor(imgData, imgW, imgH, cx, cy, cellSize / 2);
+          ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
+        } else {
+          ctx.fillStyle = inv
+            ? `rgb(${bg.r},${bg.g},${bg.b})`
+            : `rgb(${fg.r},${fg.g},${fg.b})`;
+        }
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  _renderColorHalftone(ctx, imgW, imgH, imgData, contrastFactor) {
+    const p = this.params;
+    const cellSize = Math.max(3, p.patternSize);
+    const maxR = cellSize * 0.5;
+    const inv = p.patternInvert;
+
+    const channels = [
+      { angle: 15, color: 'cyan' },
+      { angle: 75, color: 'magenta' },
+      { angle: 0, color: 'yellow' },
+      { angle: 45, color: 'black' },
+    ];
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, imgW, imgH);
+
+    for (const ch of channels) {
+      const angle = (ch.angle * Math.PI) / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const diagLen = Math.sqrt(imgW * imgW + imgH * imgH);
+      const gridCols = Math.ceil(diagLen / cellSize) + 2;
+      const gridRows = Math.ceil(diagLen / cellSize) + 2;
+      const offsetX = imgW / 2;
+      const offsetY = imgH / 2;
+
+      for (let gr = -gridRows; gr <= gridRows; gr++) {
+        for (let gc = -gridCols; gc <= gridCols; gc++) {
+          const gx = gc * cellSize;
+          const gy = gr * cellSize;
+          const cx = cos * gx - sin * gy + offsetX;
+          const cy = sin * gx + cos * gy + offsetY;
+
+          if (cx < -cellSize || cx > imgW + cellSize || cy < -cellSize || cy > imgH + cellSize) continue;
+
+          const px = Math.min(imgW - 1, Math.max(0, Math.round(cx)));
+          const py = Math.min(imgH - 1, Math.max(0, Math.round(cy)));
+          const idx = (py * imgW + px) * 4;
+          const r = imgData[idx], g = imgData[idx + 1], b = imgData[idx + 2];
+
+          let channelVal;
+          switch (ch.color) {
+            case 'cyan':    channelVal = 1 - r / 255; break;
+            case 'magenta': channelVal = 1 - g / 255; break;
+            case 'yellow':  channelVal = 1 - b / 255; break;
+            case 'black':   channelVal = 1 - Math.max(r, g, b) / 255; break;
+          }
+
+          channelVal = Math.max(0, Math.min(1, 0.5 + (channelVal - 0.5) * contrastFactor));
+          if (inv) channelVal = 1 - channelVal;
+
+          const dotR = channelVal * maxR;
+          if (dotR < 0.3) continue;
+
+          switch (ch.color) {
+            case 'cyan':    ctx.fillStyle = `rgba(0,255,255,${channelVal * 0.7})`; break;
+            case 'magenta': ctx.fillStyle = `rgba(255,0,255,${channelVal * 0.7})`; break;
+            case 'yellow':  ctx.fillStyle = `rgba(255,255,0,${channelVal * 0.7})`; break;
+            case 'black':   ctx.fillStyle = `rgba(0,0,0,${channelVal * 0.85})`; break;
+          }
+
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.beginPath();
+          ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  _renderDots(ctx, imgW, imgH, imgData, fg, bg, contrastFactor) {
+    const p = this.params;
+    const cellSize = Math.max(2, p.patternSize);
+    const maxR = cellSize * 0.42;
+    const inv = p.patternInvert;
+    const useOrig = p.patternOrigColors;
+
+    for (let y = cellSize / 2; y < imgH; y += cellSize) {
+      for (let x = cellSize / 2; x < imgW; x += cellSize) {
+        let brightness = this._sampleBrightness(imgData, imgW, imgH, x, y, cellSize / 2);
+        brightness = Math.max(0, Math.min(1, 0.5 + (brightness - 0.5) * contrastFactor));
+
+        const darkness = inv ? brightness : 1 - brightness;
+        const r = darkness * maxR;
+        if (r < 0.3) continue;
+
+        if (useOrig) {
+          const c = this._sampleColor(imgData, imgW, imgH, x, y, cellSize / 2);
+          ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
+        } else {
+          ctx.fillStyle = inv
+            ? `rgb(${bg.r},${bg.g},${bg.b})`
+            : `rgb(${fg.r},${fg.g},${fg.b})`;
+        }
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  _renderGrid(ctx, imgW, imgH, imgData, fg, bg, contrastFactor) {
+    const p = this.params;
+    const cellSize = Math.max(2, p.patternSize);
+    const inv = p.patternInvert;
+    const useOrig = p.patternOrigColors;
+
+    for (let y = 0; y < imgH; y += cellSize) {
+      for (let x = 0; x < imgW; x += cellSize) {
+        let brightness = this._sampleBrightness(imgData, imgW, imgH, x + cellSize / 2, y + cellSize / 2, cellSize / 2);
+        brightness = Math.max(0, Math.min(1, 0.5 + (brightness - 0.5) * contrastFactor));
+        if (inv) brightness = 1 - brightness;
+
+        const fillSize = (1 - brightness) * cellSize;
+        const gap = (cellSize - fillSize) / 2;
+
+        if (fillSize < 0.5) continue;
+
+        if (useOrig) {
+          const c = this._sampleColor(imgData, imgW, imgH, x + cellSize / 2, y + cellSize / 2, cellSize / 2);
+          ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
+        } else {
+          ctx.fillStyle = `rgb(${fg.r},${fg.g},${fg.b})`;
+        }
+        ctx.fillRect(x + gap, y + gap, fillSize, fillSize);
+      }
+    }
+  }
+
+  _renderNoise(ctx, imgW, imgH, imgData, fg, bg, contrastFactor) {
+    const p = this.params;
+    const grainSize = Math.max(1, Math.floor(p.patternSize / 2));
+    const inv = p.patternInvert;
+    const useOrig = p.patternOrigColors;
+
+    const output = ctx.createImageData(imgW, imgH);
+    const out = output.data;
+
+    for (let y = 0; y < imgH; y += grainSize) {
+      for (let x = 0; x < imgW; x += grainSize) {
+        const idx = (y * imgW + x) * 4;
+        const r = imgData[idx], g = imgData[idx + 1], b = imgData[idx + 2];
+        let brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        brightness = Math.max(0, Math.min(1, 0.5 + (brightness - 0.5) * contrastFactor));
+        if (inv) brightness = 1 - brightness;
+
+        const noise = Math.random();
+        const isLit = noise < brightness;
+
+        for (let dy = 0; dy < grainSize && (y + dy) < imgH; dy++) {
+          for (let dx = 0; dx < grainSize && (x + dx) < imgW; dx++) {
+            const oi = ((y + dy) * imgW + (x + dx)) * 4;
+            if (isLit) {
+              if (useOrig) {
+                const si = ((y + dy) * imgW + (x + dx)) * 4;
+                out[oi] = imgData[si]; out[oi + 1] = imgData[si + 1]; out[oi + 2] = imgData[si + 2];
+              } else {
+                out[oi] = bg.r; out[oi + 1] = bg.g; out[oi + 2] = bg.b;
+              }
+            } else {
+              if (useOrig) {
+                const si = ((y + dy) * imgW + (x + dx)) * 4;
+                const darken = 0.3;
+                out[oi] = Math.round(imgData[si] * darken);
+                out[oi + 1] = Math.round(imgData[si + 1] * darken);
+                out[oi + 2] = Math.round(imgData[si + 2] * darken);
+              } else {
+                out[oi] = fg.r; out[oi + 1] = fg.g; out[oi + 2] = fg.b;
+              }
+            }
+            out[oi + 3] = 255;
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(output, 0, 0);
+  }
+
+  _renderCircles(ctx, imgW, imgH, imgData, fg, bg, contrastFactor) {
+    const p = this.params;
+    const cellSize = Math.max(4, p.patternSize * 2);
+    const maxR = cellSize * 0.48;
+    const inv = p.patternInvert;
+    const useOrig = p.patternOrigColors;
+
+    for (let y = cellSize / 2; y < imgH + cellSize; y += cellSize) {
+      for (let x = cellSize / 2; x < imgW + cellSize; x += cellSize) {
+        let brightness = this._sampleBrightness(imgData, imgW, imgH, x, y, cellSize / 2);
+        brightness = Math.max(0, Math.min(1, 0.5 + (brightness - 0.5) * contrastFactor));
+
+        const darkness = inv ? brightness : 1 - brightness;
+        const r = Math.max(1, darkness * maxR);
+
+        if (useOrig) {
+          const c = this._sampleColor(imgData, imgW, imgH, x, y, cellSize / 2);
+          ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
+        } else {
+          ctx.fillStyle = inv
+            ? `rgb(${bg.r},${bg.g},${bg.b})`
+            : `rgb(${fg.r},${fg.g},${fg.b})`;
+        }
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 
   getASCIIText() {

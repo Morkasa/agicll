@@ -130,6 +130,7 @@
         <button class="tab active" data-tab="ascii">ASCII Art</button>
         <button class="tab" data-tab="glitch">Glitch Art</button>
         <button class="tab" data-tab="dithering">Dithering</button>
+        <button class="tab" data-tab="pattern">Pattern</button>
       </div>
 
       <div class="controls-scroll">
@@ -227,6 +228,38 @@
             </div>
             <div class="control-group"><label>Anim Speed</label><div class="slider-row"><input type="range" class="slider" id="ditherAnimSpeed" min="1" max="100" value="50" step="1"></div></div>
             <div class="control-group"><label>Anim Intensity</label><div class="slider-row"><input type="range" class="slider" id="ditherAnimIntensity" min="1" max="100" value="50" step="1"></div></div>
+          </div>
+        </div>
+
+        <!-- ===== Pattern Tab ===== -->
+        <div class="tab-content" data-tab="pattern">
+          <div class="control-section">
+            <div class="section-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <circle cx="4" cy="4" r="3"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="4" r="3"/>
+                <circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="3.5"/><circle cx="20" cy="12" r="2"/>
+                <circle cx="4" cy="20" r="3"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="3"/>
+              </svg>
+              <span>Pattern</span>
+            </div>
+            <div class="control-group">
+              <label>Type</label>
+              <div class="style-grid" style="grid-template-columns: repeat(3, 1fr)">
+                <button class="style-btn pattern-type-btn active" data-ptype="halftone">Halftone</button>
+                <button class="style-btn pattern-type-btn" data-ptype="colorHalftone">Color HT</button>
+                <button class="style-btn pattern-type-btn" data-ptype="dots">Dots</button>
+                <button class="style-btn pattern-type-btn" data-ptype="grid">Grid</button>
+                <button class="style-btn pattern-type-btn" data-ptype="noise">Noise</button>
+                <button class="style-btn pattern-type-btn" data-ptype="circles">Circles</button>
+              </div>
+            </div>
+            <div class="control-group"><label>Size</label><div class="slider-row"><input type="range" class="slider" id="patternSizeSlider" min="2" max="40" value="8" step="1"></div></div>
+            <div class="control-group" id="patternAngleGroup"><label>Angle</label><div class="slider-row"><input type="range" class="slider" id="patternAngleSlider" min="0" max="90" value="45" step="1"></div></div>
+            <div class="control-group"><label>Contrast</label><div class="slider-row"><input type="range" class="slider" id="patternContrastSlider" min="0" max="100" value="50" step="1"></div></div>
+            <div class="control-group toggle-group"><label>Invert</label><label class="toggle"><input type="checkbox" id="patternInvertToggle"><span class="toggle-slider"></span></label></div>
+            <div class="control-group toggle-group"><label>Original Colors</label><label class="toggle"><input type="checkbox" id="patternOrigColors"><span class="toggle-slider"></span></label></div>
+            <div class="control-group toggle-group"><label>Foreground</label><input type="color" class="color-picker" id="patternFgColor" value="#000000"></div>
+            <div class="control-group toggle-group"><label>Background</label><input type="color" class="color-picker" id="patternBgColor" value="#ffffff"></div>
           </div>
         </div>
 

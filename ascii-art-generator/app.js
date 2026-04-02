@@ -329,9 +329,9 @@
   }
 
   // --- Style buttons ---
-  document.querySelectorAll('.style-btn:not(.anim-btn):not(.dither-type-btn):not(.dither-anim-btn)').forEach(btn => {
+  document.querySelectorAll('.style-btn:not(.anim-btn):not(.dither-type-btn):not(.dither-anim-btn):not(.pattern-type-btn)').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.style-btn:not(.anim-btn):not(.dither-type-btn):not(.dither-anim-btn)').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.style-btn:not(.anim-btn):not(.dither-type-btn):not(.dither-anim-btn):not(.pattern-type-btn)').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       engine.params.style = btn.dataset.style;
 
@@ -446,6 +446,53 @@
 
   document.getElementById('ditherAnimIntensity').addEventListener('input', (e) => {
     engine.params.ditherAnimIntensity = parseFloat(e.target.value);
+  });
+
+  // --- Pattern ---
+  document.querySelectorAll('.pattern-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pattern-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      engine.params.patternType = btn.dataset.ptype;
+      const angleGroup = document.getElementById('patternAngleGroup');
+      angleGroup.style.display = (btn.dataset.ptype === 'halftone' || btn.dataset.ptype === 'colorHalftone') ? '' : 'none';
+      scheduleRender();
+    });
+  });
+
+  document.getElementById('patternSizeSlider').addEventListener('input', (e) => {
+    engine.params.patternSize = parseInt(e.target.value);
+    scheduleRender();
+  });
+
+  document.getElementById('patternAngleSlider').addEventListener('input', (e) => {
+    engine.params.patternAngle = parseInt(e.target.value);
+    scheduleRender();
+  });
+
+  document.getElementById('patternContrastSlider').addEventListener('input', (e) => {
+    engine.params.patternContrast = parseInt(e.target.value);
+    scheduleRender();
+  });
+
+  document.getElementById('patternInvertToggle').addEventListener('change', (e) => {
+    engine.params.patternInvert = e.target.checked;
+    scheduleRender();
+  });
+
+  document.getElementById('patternOrigColors').addEventListener('change', (e) => {
+    engine.params.patternOrigColors = e.target.checked;
+    scheduleRender();
+  });
+
+  document.getElementById('patternFgColor').addEventListener('input', (e) => {
+    engine.params.patternFgColor = e.target.value;
+    scheduleRender();
+  });
+
+  document.getElementById('patternBgColor').addEventListener('input', (e) => {
+    engine.params.patternBgColor = e.target.value;
+    scheduleRender();
   });
 
   // --- Glitch Art ---
@@ -666,7 +713,7 @@
         tc.classList.toggle('active', tc.dataset.tab === mode);
       });
 
-      animationSection.style.display = mode === 'dithering' ? 'none' : '';
+      animationSection.style.display = (mode === 'dithering' || mode === 'pattern') ? 'none' : '';
 
       if (mode === 'dithering' && engine.params.ditherAnimEnabled) {
         startDitherAnimLoop();
